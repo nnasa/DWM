@@ -5,8 +5,8 @@
  *
  * font: see http://freedesktop.org/software/fontconfig/fontconfig-user.html
  */
-/*static char *font = "Liberation Mono:pixelsize=12:antialias=true:autohint=true";*/
 static char *font = "JetBrainsMono Nerd Font Mono:pixelsize=12:antialias=true:autohint=true";
+/* static char *font = "Liberation Mono:pixelsize=14:antialias=true:autohint=true";*/
 static int borderpx = 5;
 
 /*
@@ -17,7 +17,7 @@ static int borderpx = 5;
  * 4: value of shell in /etc/passwd
  * 5: value of shell in config.h
  */
-static char *shell = "/bin/bash";
+static char *shell = "/bin/sh";
 char *utmp = NULL;
 /* scroll program: to enable use a string like "scroll" */
 char *scroll = NULL;
@@ -126,7 +126,6 @@ static const char *colorname[] = {
 	"#2A2A2A", /* default background colour */
 };
 
-
 /*
  * Default colors (colorname index)
  * foreground, background, cursor, reverse cursor
@@ -137,27 +136,20 @@ unsigned int defaultcs = 256;
 static unsigned int defaultrcs = 257;
 
 /*
- * https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h4-Functions-using-CSI-_-ordered-by-the-final-character-lparen-s-rparen:CSI-Ps-SP-q.1D81
- * Default style of cursor
- * 0: blinking block
- * 1: blinking block (default)
- * 2: steady block ("█")
- * 3: blinking underline
- * 4: steady underline ("_")
- * 5: blinking bar
- * 6: steady bar ("|")
- * 7: blinking st cursor
- * 8: steady st cursor
+ * Default shape of cursor
+ * 2: Block ("█")
+ * 4: Underline ("_")
+ * 6: Bar ("|")
+ * 7: Snowman ("☃")
  */
-static unsigned int cursorstyle = 5;
-static Rune stcursor = 0x2603; /* snowman ("☃") */
+static unsigned int cursorshape = 2;
 
 /*
  * Default columns and rows numbers
  */
 
-static unsigned int cols = 123;
-static unsigned int rows = 33;
+static unsigned int cols = 80;
+static unsigned int rows = 24;
 
 /*
  * Default colour and shape of the mouse cursor
@@ -179,58 +171,37 @@ static unsigned int defaultattr = 11;
  */
 static uint forcemousemod = ShiftMask;
 
-#include "autocomplete.h"
-
 /*
  * Internal mouse shortcuts.
  * Beware that overloading Button1 will disable the selection.
  */
 static MouseShortcut mshortcuts[] = {
 	/* mask                 button   function        argument       release */
-  { XK_NO_MOD,            Button4, kscrollup,      {.i = 5} },
-  { XK_NO_MOD,            Button5, kscrolldown,    {.i = 5} },
-  { XK_ANY_MOD,           Button2, selpaste,       {.i = 0},      1 },
-  { ShiftMask,            Button4, ttysend,        {.s = "\033[5;2~"} },
-  { XK_ANY_MOD,           Button4, ttysend,        {.s = "\031"} },
-  { ShiftMask,            Button5, ttysend,        {.s = "\033[6;2~"} },
-  { XK_ANY_MOD,           Button5, ttysend,        {.s = "\005"} },
+	{ XK_ANY_MOD,           Button2, selpaste,       {.i = 0},      1 },
+	{ ShiftMask,            Button4, ttysend,        {.s = "\033[5;2~"} },
+	{ XK_ANY_MOD,           Button4, ttysend,        {.s = "\031"} },
+	{ ShiftMask,            Button5, ttysend,        {.s = "\033[6;2~"} },
+	{ XK_ANY_MOD,           Button5, ttysend,        {.s = "\005"} },
 };
 
 /* Internal keyboard shortcuts. */
 #define MODKEY Mod1Mask
 #define TERMMOD (ControlMask|ShiftMask)
 
-#define ACMPL_MOD ControlMask|Mod1Mask
-
 static Shortcut shortcuts[] = {
 	/* mask                 keysym          function        argument */
-  { XK_ANY_MOD,           XK_Break,       sendbreak,      {.i =  0} },
-  { ControlMask,          XK_Print,       toggleprinter,  {.i =  0} },
-  { ShiftMask,            XK_Print,       printscreen,    {.i =  0} },
-  { XK_ANY_MOD,           XK_Print,       printsel,       {.i =  0} },
-  { TERMMOD,              XK_Prior,       zoom,           {.f = +1} },
-  { ControlMask,          XK_9,           zoom,           {.f = +1} },
-  { ControlMask,          XK_plus,        zoom,           {.f = +1} },
-  { TERMMOD,              XK_Next,        zoom,           {.f = -1} },
-  { ControlMask,          XK_8,           zoom,           {.f = -1} },
-  { ControlMask,          XK_minus,       zoom,           {.f = -1} },
-  { TERMMOD,              XK_Home,        zoomreset,      {.f =  0} },
-  { ControlMask,          XK_0,           zoomreset,      {.f =  0} },
-  { TERMMOD,              XK_C,           clipcopy,       {.i =  0} },
-  { TERMMOD,              XK_V,           clippaste,      {.i =  0} },
-  { TERMMOD,              XK_Y,           selpaste,       {.i =  0} },
-  { ShiftMask,            XK_Insert,      selpaste,       {.i =  0} },
-  { TERMMOD,              XK_Num_Lock,    numlock,        {.i =  0} },
-  { ShiftMask,            XK_Page_Up,     kscrollup,      {.i = -1} },
-  { ShiftMask,            XK_Page_Down,   kscrolldown,    {.i = -1} },
-  { MODKEY,               XK_Page_Up,     kscrollup,      {.i = -1} },
-  { MODKEY,               XK_Page_Down,   kscrolldown,    {.i = -1} },
-  { MODKEY,               XK_k,           kscrollup,      {.i =  3} },
-  { MODKEY,               XK_j,           kscrolldown,    {.i =  3} },
-  { MODKEY,               XK_Up,          kscrollup,      {.i =  3} },
-  { MODKEY,               XK_Down,        kscrolldown,    {.i =  3} },
-  { MODKEY,               XK_u,           kscrollup,      {.i = -1} },
-  { MODKEY,               XK_d,           kscrolldown,    {.i = -1} },
+	{ XK_ANY_MOD,           XK_Break,       sendbreak,      {.i =  0} },
+	{ ControlMask,          XK_Print,       toggleprinter,  {.i =  0} },
+	{ ShiftMask,            XK_Print,       printscreen,    {.i =  0} },
+	{ XK_ANY_MOD,           XK_Print,       printsel,       {.i =  0} },
+	{ TERMMOD,              XK_Prior,       zoom,           {.f = +1} },
+	{ TERMMOD,              XK_Next,        zoom,           {.f = -1} },
+	{ TERMMOD,              XK_Home,        zoomreset,      {.f =  0} },
+	{ TERMMOD,              XK_C,           clipcopy,       {.i =  0} },
+	{ TERMMOD,              XK_V,           clippaste,      {.i =  0} },
+	{ TERMMOD,              XK_Y,           selpaste,       {.i =  0} },
+	{ ShiftMask,            XK_Insert,      selpaste,       {.i =  0} },
+	{ TERMMOD,              XK_Num_Lock,    numlock,        {.i =  0} },
 };
 
 /*
@@ -246,7 +217,7 @@ static Shortcut shortcuts[] = {
  * * < 0: keypad application mode disabled
  * appcursor value:
  * * 0: no value
- * * > 0: CURSOr application mode enabled
+ * * > 0: cursor application mode enabled
  * * < 0: cursor application mode disabled
  *
  * Be careful with the order of the definitions because st searches in
